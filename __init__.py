@@ -50,18 +50,9 @@ class FlexiblePartial:
             except Exception:
                 self.kwargs = kwargs
 
-    def __call__(self, *args, **kwargs):
-        newdic = {}
-        newdic.update(self.kwargs)
-        newdic.update(kwargs)
-        if self.this_args_first:
-            return self.f(*self.args, *args, **newdic)
+        self.name_to_print = self._create_name()
 
-        else:
-
-            return self.f(*args, *self.args, **newdic)
-
-    def __str__(self):
+    def _create_name(self):
         if self.modulename != "":
             stra = self.modulename + "." + self.functionname + "("
         else:
@@ -77,7 +68,19 @@ class FlexiblePartial:
             stra = stra[:95] + "...)"
         return stra
 
+    def __call__(self, *args, **kwargs):
+        newdic = {}
+        newdic.update(self.kwargs)
+        newdic.update(kwargs)
+        if self.this_args_first:
+            return self.f(*self.args, *args, **newdic)
+
+        else:
+
+            return self.f(*args, *self.args, **newdic)
+
+    def __str__(self):
+        return self.name_to_print
+
     def __repr__(self):
         return self.__str__()
-
-
