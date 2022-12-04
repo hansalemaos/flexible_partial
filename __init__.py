@@ -1,137 +1,140 @@
-# Like partial, but you can determine the order of *args
+import inspect
+from copy import deepcopy
 
-```python
-pip install flexible-partial
-```
 
-```python
-#######################################
-Update 2022-12-04:
+def copy_func(f):
+    if callable(f):
+        if inspect.ismethod(f) or inspect.isfunction(f):
+            g = lambda *args, **kwargs: f(*args, **kwargs)
+            t = list(filter(lambda prop: not ("__" in prop), dir(f)))
+            i = 0
+            while i < len(t):
+                setattr(g, t[i], getattr(f, t[i]))
+                i += 1
+            return g
+    dcoi = deepcopy([f])
+    return dcoi[0]
 
-# When you use FlexiblePartialOwnName, you can define the output of __str__ and __repr__ 
 
-from flexible_partial import FlexiblePartial, FlexiblePartialOwnName
-import regex
-from random import choice
-from string import ascii_lowercase
-text = """Hi, my friend, how are you?"""
-allfus = [
-    FlexiblePartialOwnName(
-        regex.sub,
-        f'{x} Hello, I am a function!', # for __str__ and __repr__ 
-        True,  # this_args_first = True (choice(list(ascii_lowercase)) will be the first arg when the function is called)
-        choice(list(ascii_lowercase)),
-        flags=regex.IGNORECASE,
-    )
-    for x in range(10)
-]
-for alsw in allfus:
-    print(f"Executing: {alsw}")
-    text = alsw("P", text)
-    print(text)
-    
-Executing: 0 Hello, I am a function!
-Hi, my friePd, how are you?
-Executing: 1 Hello, I am a function!
-Hi, my friePd, how are you?
-Executing: 2 Hello, I am a function!
-Hi, mP friePd, how are Pou?
-Executing: 3 Hello, I am a function!
-Hi, mP friePd, how are Pou?
-Executing: 4 Hello, I am a function!
-Hi, mP friePd, hPw are PPu?
-Executing: 5 Hello, I am a function!
-Hi, mP friePd, hPw are PPu?
-Executing: 6 Hello, I am a function!
-Hi, PP friePd, hPw are PPu?
-Executing: 7 Hello, I am a function!
-Hi, PP friePd, hPP are PPu?
-Executing: 8 Hello, I am a function!
-Hi, PP friePd, hPP Pre PPu?
-Executing: 9 Hello, I am a function!
-Hi, PP friePd, hPP Pre PPP?
+class FlexiblePartial:
+    def __init__(self, func, this_args_first=True, *args, **kwargs):
 
-#######################################
+        self.this_args_first = this_args_first
+        try:
+            self.modulename = func.__module__
+        except Exception:
+            self.modulename = ""
 
-from flexible_partial import FlexiblePartial
-import regex
-from random import choice
-from string import ascii_lowercase
+        try:
+            self.functionname = func.__name__
+        except Exception:
+            try:
+                self.functionname = func.__qualname__
+            except Exception:
+                self.functionname = "func"
 
-text = """Hi, my friend, how are you?"""
+        try:
+            self.f = copy_func(func)
+        except Exception:
+            self.f = func
+        try:
+            self.args = copy_func(list(args))
+        except Exception:
+            self.args = args
 
-allfus = [
+        try:
+            self.kwargs = copy_func(kwargs)
+        except Exception:
+            try:
+                self.kwargs = kwargs.copy()
+            except Exception:
+                self.kwargs = kwargs
+
+        self.name_to_print = self._create_name()
+
+    def _create_name(self):
+        if self.modulename != "":
+            stra = self.modulename + "." + self.functionname + "("
+        else:
+            stra = self.functionname + "("
+
+        for _ in self.args:
+            stra = stra + repr(_) + ", "
+        for key, item in self.kwargs.items():
+            stra = stra + str(key) + "=" + repr(item) + ", "
+        stra = stra.rstrip().rstrip(",")
+        stra += ")"
+        if len(stra) > 100:
+            stra = stra[:95] + "...)"
+        return stra
+
+    def __call__(self, *args, **kwargs):
+        newdic = {}
+        newdic.update(self.kwargs)
+        newdic.update(kwargs)
+        if self.this_args_first:
+            return self.f(*self.args, *args, **newdic)
+
+        else:
+
+            return self.f(*args, *self.args, **newdic)
+
+    def __str__(self):
+        return self.name_to_print
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class FlexiblePartialOwnName:
+    r"""
     FlexiblePartial(
-        regex.sub,
-        True,  # this_args_first = True (choice(list(ascii_lowercase)) will be the first arg when the function is called)
-        choice(list(ascii_lowercase)),
-        flags=regex.IGNORECASE,
-    )
-    for x in range(10)
-]
+            remove_file,
+            "()",
+            True,
+            fullpath_on_device=x.aa_fullpath,
+            adb_path=adb_path,
+            serialnumber=device,
+        )
 
-for alsw in allfus:
-    print(f"Executing: {alsw}")
-    text = alsw("P", text)
-    print(text)
+    """
 
-# Executing: regex.regex.sub('z', flags=regex.I)
-# Hi, my friend, how are you?
-# Executing: regex.regex.sub('o', flags=regex.I)
-# Hi, my friend, hPw are yPu?
-# Executing: regex.regex.sub('u', flags=regex.I)
-# Hi, my friend, hPw are yPP?
-# Executing: regex.regex.sub('y', flags=regex.I)
-# Hi, mP friend, hPw are PPP?
-# Executing: regex.regex.sub('z', flags=regex.I)
-# Hi, mP friend, hPw are PPP?
-# Executing: regex.regex.sub('b', flags=regex.I)
-# Hi, mP friend, hPw are PPP?
-# Executing: regex.regex.sub('k', flags=regex.I)
-# Hi, mP friend, hPw are PPP?
-# Executing: regex.regex.sub('w', flags=regex.I)
-# Hi, mP friend, hPP are PPP?
-# Executing: regex.regex.sub('k', flags=regex.I)
-# Hi, mP friend, hPP are PPP?
-# Executing: regex.regex.sub('a', flags=regex.I)
-# Hi, mP friend, hPP Pre PPP?
+    def __init__(
+        self, func, funcname: str, this_args_first: bool = True, *args, **kwargs
+    ):
 
-text = """Hi, my friend, how are you?"""
+        self.this_args_first = this_args_first
+        self.funcname = funcname
+        try:
+            self.f = copy_func(func)
+        except Exception:
+            self.f = func
+        try:
+            self.args = copy_func(list(args))
+        except Exception:
+            self.args = args
 
-allfus = [
-    FlexiblePartial(
-        regex.sub,
-        False,  # this_args_first = False (text will be the last arg when the function is called)
-        text,
-        flags=regex.IGNORECASE,
-    )
-    for x in range(10)
-]
+        try:
+            self.kwargs = copy_func(kwargs)
+        except Exception:
+            try:
+                self.kwargs = kwargs.copy()
+            except Exception:
+                self.kwargs = kwargs
 
-for alsw in allfus:
-    print(f"Executing: {alsw}")
-    text = alsw(choice(list(ascii_lowercase)), choice(list(ascii_lowercase)))
-    print(text)
+    def __call__(self, *args, **kwargs):
+        newdic = {}
+        newdic.update(self.kwargs)
+        newdic.update(kwargs)
+        if self.this_args_first:
+            return self.f(*self.args, *args, **newdic)
 
+        else:
 
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, me friend, how are eou?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, mv friend, how are vou?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my friend, hos are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my frienh, how are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my friend, how are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my mriend, how are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my friend, how are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, mv friend, how are vou?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my friend, how are you?
-# Executing: regex.regex.sub('Hi, my friend, how are you?', flags=regex.I)
-# Hi, my friend, how rre you?
-```
+            return self.f(*args, *self.args, **newdic)
+
+    def __str__(self):
+        return self.funcname
+
+    def __repr__(self):
+        return self.funcname
